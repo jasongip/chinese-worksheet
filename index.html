@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全頁標楷體字帖 - 專業版</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary-color: #1a73e8; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: #f4f7f6; margin: 0; padding: 20px; }
+        
+        /* 控制面板樣式 */
+        .no-print { max-width: 750px; margin: 0 auto 30px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .no-print h2 { text-align: center; color: var(--primary-color); margin-bottom: 20px; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group.full { grid-column: span 2; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #555; }
+        input, select { width: 100%; padding: 12px; border: 1.5px solid #eee; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+        input:focus { border-color: var(--primary-color); outline: none; }
+        
+        button { width: 100%; padding: 18px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 15px; }
+        button:hover { background: #218838; }
+
+        /* 打印區域樣式 */
+        @page { size: A4; margin: 8mm; }
+        #print-area { 
+            display: grid; 
+            width: 190mm; 
+            margin: 0 auto;
+            background: white;
+            justify-content: center;
+        }
+
+        .grid-cell {
+            border: 0.3pt solid #777; /* 稍微深少少嘅外框 */
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        /* 米字格虛線 - 盡量淡色唔好干擾寫字 */
+        .grid-cell::before, .grid-cell::after {
+            content: ""; position: absolute; border: 0.1pt dashed #ddd; pointer-events: none;
+        }
+        .grid-cell::before { width: 100%; height: 0; top: 50%; left: 0; }
+        .grid-cell::after { width: 0; height: 100%; top: 0; left: 50%; }
+
+        /* 標楷體設定 */
+        .char {
+            z-index: 1;
+            /* 優先使用標楷體，冇嘅話就用加載嘅 Noto Serif */
+            font-family: "DFKai-SB", "BiauKai", "標楷體", "Kaiti TC", "Noto Serif TC", serif;
+            line-height: 1;
+            font-weight: 500;
+        }
+
+        @media print {
+            .no-print { display: none; }
+            body { background: white; padding: 0; }
+            #print-area { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print">
+    <h2>✒️ 標楷體習字帖 (專業定製版)</h2>
+    <div class="controls">
+        <div class="form-group full">
+            <label>想寫嘅字 (例如：我喜歡吃糖果):</label>
+            <input type="text" id="textInput" value="大吉大利" oninput="refreshGrid()">
+        </div>
+        <div class="form-group">
+            <label>每行字數 (自己入數):</label>
+            <input type="number" id="charsPerLine" value="8" min="1" max="20" oninput="refreshGrid()">
+        </div>
+        <div class="form-group">
+            <label>生成模式:</label>
+            <select id="genMode" onchange="refreshGrid()">
+                <option value="firstRow" selected>範本模式 (得第一行有字)</option>
+                <option value="all">全頁描紅 (重複填滿)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>方格大小 (cm):</label>
+            <input type="number" id="gridSize" value="2.0" step="0.1" min="1" max="5" oninput="refreshGrid()">
+        </div>
+        <div class="form-group">
+            <label>描紅深淺:</label>
+            <select id="fontColor" onchange="refreshGrid()">
+                <option value="#f0f0f0">極淺灰 (#f0f0f0 - 最淡)</option>
+                <option value="#e2e2e2" selected>標準淡灰 (#e2e2e2)</option>
+                <option value="#cccccc">中灰色 (#cccccc)</option>
+                <option value="#000000">純黑色 (範本用)</option>
+            </select>
+        </div>
+        <div class="btn-group" style="grid-column: span 2;">
+            <button onclick="window.print()">🖨️ 生成 PDF / 列印</button>
+        </div>
+    </div>
+</div>
+
+<div id="print-area"></div>
+
+<script>
+    function refreshGrid() {
+        const text = document.getElementById('textInput').value || " ";
+        const sizeCm = parseFloat(document.getElementById('gridSize').value) || 2.0;
+        const color = document.getElementById('fontColor').value;
+        const charsPerLine = parseInt(document.getElementById('charsPerLine').value) || 1;
+        const genMode = document.getElementById('genMode').value;
+        const printArea = document.getElementById('print-area');
+        
+        const sizeMm = sizeCm * 10;
+        const pageWidthMm = 190; 
+        const pageHeightMm = 275; 
+
+        printArea.style.gridTemplateColumns = `repeat(${charsPerLine}, ${sizeMm}mm)`;
+        printArea.innerHTML = "";
+
+        const textArray = Array.from(text);
+        const rows = Math.floor(pageHeightMm / sizeMm);
+        const totalCells = charsPerLine * rows;
+
+        for (let i = 0; i < totalCells; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.style.width = `${sizeMm}mm`;
+            cell.style.height = `${sizeMm}mm`;
+
+            const charSpan = document.createElement('span');
+            charSpan.className = 'char';
+            
+            let showChar = false;
+            let charToDisplay = "";
+
+            if (genMode === 'all') {
+                showChar = true;
+                charToDisplay = textArray[i % textArray.length];
+            } else if (genMode === 'firstRow') {
+                if (i < charsPerLine) {
+                    showChar = true;
+                    charToDisplay = textArray[i % textArray.length] || "";
+                }
+            }
+
+            if (showChar && charToDisplay) {
+                charSpan.innerText = charToDisplay;
+                // 標楷體通常設為格仔嘅 75%-80% 最靚
+                charSpan.style.fontSize = `${sizeMm * 0.78}mm`;
+                charSpan.style.color = color;
+            }
+
+            cell.appendChild(charSpan);
+            printArea.appendChild(cell);
+        }
+    }
+
+    // 頁面加載時執行一次
+    window.onload = refreshGrid;
+</script>
+
+</body>
+</html>
